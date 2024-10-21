@@ -56,7 +56,13 @@ jobs:
         id: update-task-def
         run: |
           IMAGE_TAG=${{ github.sha }}
-          jq --arg IMAGE "$ECR_REGISTRY/nestjs-aws-ecs:$IMAGE_TAG" '.containerDefinitions[0].image = $IMAGE' task-definition.json > updated-task-definition.json
+          # Eliminar campos innecesarios
+          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' task-definition.json > stripped-task-definition.json
+
+          # Actualizar la imagen
+          jq --arg IMAGE "$ECR_REGISTRY/nestjs-aws-ecs:$IMAGE_TAG" '.containerDefinitions[0].image = $IMAGE' stripped-task-definition.json > updated-task-definition.json
+
+          # Registrar la nueva definición de tarea
           aws ecs register-task-definition --cli-input-json file://updated-task-definition.json
 
       - name: Deploy to Amazon ECS
