@@ -8,6 +8,8 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: nestjs-aws-ecs
+  ECS_SERVICE: nestjs-demo-service
+
 
 jobs:
   create-docker-image:
@@ -70,6 +72,6 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: nestjs-demo-service
+          service: ${{ env.ECS_SERVICE }}
           cluster: nestjs-ecs-cluster
           wait-for-service-stability: true
