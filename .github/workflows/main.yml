@@ -43,35 +43,30 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Get current task definition
-        id: get-task-def
-        run: |
-          aws ecs describe-task-definition --task-definition nestjs-demo --query "taskDefinition" --output json > task-definition.json
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Update task definition with new image tag
-        id: update-task-def
+      - name: Get current task definition
+        run: |
+          aws ecs describe-task-definition --task-definition nestjs-demo --query taskDefinition > task-definition.json
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: nestjs-aws-ecs
           IMAGE_TAG: ${{ github.sha }}
-        run: |
-          # Eliminar campos innecesarios
-          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' task-definition.json > stripped-task-definition.json
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: nestjs-demo-container
+          image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
-          # Actualizar la imagen en la definición de tarea
-          jq --arg IMAGE "$ECR_REGISTRY/nestjs-aws-ecs:$IMAGE_TAG" '.containerDefinitions[0].image = $IMAGE' stripped-task-definition.json > updated-task-definition.json
-
-          # Registrar la nueva definición de tarea y capturar el ARN
-          TASK_DEFINITION_ARN=$(aws ecs register-task-definition --cli-input-json file://updated-task-definition.json --query 'taskDefinition.taskDefinitionArn' --output text)
-
-          echo "Task definition ARN: $TASK_DEFINITION_ARN"
-
-          # Guardar el ARN de la definición de tarea en los outputs
-          echo "::set-output name=taskDefinitionArn::$TASK_DEFINITION_ARN"
-
-      - name: Deploy to Amazon ECS
+      - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
-          cluster: nestjs-ecs-cluster
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
           service: nestjs-demo-service
-          task-definition: ${{ steps.update-task-def.outputs.taskDefinitionArn }}
-          force-new-deployment: true
+          cluster: nestjs-ecs-cluster
+          wait-for-service-stability: true
