@@ -60,13 +60,18 @@ jobs:
           # Actualizar la imagen en la definición de tarea
           jq --arg IMAGE "$ECR_REGISTRY/nestjs-aws-ecs:$IMAGE_TAG" '.containerDefinitions[0].image = $IMAGE' stripped-task-definition.json > updated-task-definition.json
 
-          # Registrar la nueva definición de tarea
-          aws ecs register-task-definition --cli-input-json file://updated-task-definition.json
+          # Registrar la nueva definición de tarea y capturar el ARN
+          TASK_DEFINITION_ARN=$(aws ecs register-task-definition --cli-input-json file://updated-task-definition.json --query 'taskDefinition.taskDefinitionArn' --output text)
+
+          echo "Task definition ARN: $TASK_DEFINITION_ARN"
+
+          # Guardar el ARN de la definición de tarea en los outputs
+          echo "::set-output name=taskDefinitionArn::$TASK_DEFINITION_ARN"
 
       - name: Deploy to Amazon ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           cluster: nestjs-ecs-cluster
           service: nestjs-demo-service
-          task-definition: nestjs-demo
+          task-definition: ${{ steps.update-task-def.outputs.taskDefinitionArn }}
           force-new-deployment: true
