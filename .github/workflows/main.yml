@@ -43,32 +43,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Get current task definition
-        id: get-task-def
-        run: |
-          aws ecs describe-task-definition --task-definition nestjs-demo --query "taskDefinition" --output json > task-definition.json
-
-      - name: Update task definition with new image tag
-        id: update-task-def
-        run: |
-          IMAGE_TAG=${{ github.sha }}
-          # Eliminar campos innecesarios
-          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' task-definition.json > stripped-task-definition.json
-
-          # Actualizar la imagen
-          jq --arg IMAGE "$ECR_REGISTRY/nestjs-aws-ecs:$IMAGE_TAG" '.containerDefinitions[0].image = $IMAGE' stripped-task-definition.json > updated-task-definition.json
-
-          # Registrar la nueva definición de tarea
-          aws ecs register-task-definition --cli-input-json file://updated-task-definition.json
-
       - name: Deploy to Amazon ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           cluster: nestjs-ecs-cluster
-          service-name: nestjs-demo-service
-          task-definition: nestjs-demo
+          service: nestjs-demo-service
+          family: nestjs-demo
+          container-name: nestjs-container
+          image: ${{ steps.login-ecr.outputs.registry }}/nestjs-aws-ecs:${{ github.sha }}
           force-new-deployment: true
