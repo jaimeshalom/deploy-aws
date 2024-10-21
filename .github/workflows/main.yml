@@ -11,6 +11,7 @@ env:
   ECS_SERVICE: nestjs-demo-service
   ECS_CLUSTER: nestjs-ecs-cluster
   ECS_TASK_DEFINITION: nestjs-demo
+  CONTAINER_NAME: nestjs-app
 
 jobs:
   create-docker-image:
@@ -66,7 +67,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
-          container-name: nestjs-app
+          container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
       - name: Deploy Amazon ECS task definition
