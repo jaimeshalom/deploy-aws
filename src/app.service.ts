@@ -8,6 +8,6 @@ export class AppService {
 
     const hostname = os.hostname();
 
-    return `App version: ${version}, Hostname: ${hostname}`;
+    return `App version: ${version}, Hostname: ${hostname}, new deploy from github action 🎉!`;
   }
 }
