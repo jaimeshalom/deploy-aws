@@ -10,6 +10,7 @@ env:
   ECR_REPOSITORY: nestjs-aws-ecs
   ECS_SERVICE: nestjs-demo-service
   ECS_CLUSTER: nestjs-ecs-cluster
+  ECS_TASK_DEFINITION: nestjs-demo
 
 jobs:
   create-docker-image:
@@ -55,7 +56,7 @@ jobs:
 
       - name: Get current task definition
         run: |
-          aws ecs describe-task-definition --task-definition nestjs-demo --query taskDefinition > task-definition.json
+          aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION --query taskDefinition > task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
