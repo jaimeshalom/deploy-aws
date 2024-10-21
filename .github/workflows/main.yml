@@ -60,9 +60,9 @@ jobs:
           aws ecs register-task-definition --cli-input-json file://updated-task-definition.json
 
       - name: Deploy to Amazon ECS
-        uses: aws-actions/amazon-ecs-deploy@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           cluster: nestjs-ecs-cluster
-          service: nestjs-demo-service
+          service-name: nestjs-demo-service
           task-definition: nestjs-demo
           force-new-deployment: true
