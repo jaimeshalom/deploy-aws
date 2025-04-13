@@ -7,11 +7,11 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: nestjs-aws-ecs
-  ECS_SERVICE: nestjs-demo-service
-  ECS_CLUSTER: nestjs-ecs-cluster
-  ECS_TASK_DEFINITION: nestjs-demo
-  CONTAINER_NAME: nestjs-app
+  ECR_REPOSITORY: marduk/ari-integration
+  ECS_SERVICE: ari-integration-service
+  ECS_CLUSTER: ari-integration-cluster
+  ECS_TASK_DEFINITION: ari-integration-task-definition
+  CONTAINER_NAME: ari-integration-container
 
 jobs:
   create-docker-image:
