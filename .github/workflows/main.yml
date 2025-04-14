@@ -12,7 +12,7 @@ env:
   ECS_CLUSTER: ari-integration-cluster
   ECS_TASK_DEFINITION: ari-integration-task-definition
   CONTAINER_NAME: ari-integration-container
-  NODE_VERSION: '18'
+  NODE_VERSION: '22'
 
 jobs:
   test-and-lint:
