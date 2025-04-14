@@ -52,4 +52,5 @@ async function bootstrap(): Promise<void> {
   await app.listen(process.env.PORT ?? 3000);
 }
 
+// eslint-disable-next-line unicorn/prefer-top-level-await
 void bootstrap();

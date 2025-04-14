@@ -1,4 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
+// eslint-disable-next-line check-file/folder-match-with-fex
+import { type TestingModule, Test } from '@nestjs/testing';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
