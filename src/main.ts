@@ -9,7 +9,9 @@ import { darkModeCss } from './darkModeCss';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix(AppModule.prefix);
+  app.setGlobalPrefix(AppModule.prefix, {
+    exclude: ['/'],
+  });
 
   const config = new DocumentBuilder()
     .setTitle('Marduk ARI Integration Documentation')
