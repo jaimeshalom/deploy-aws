@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - 'v*.*.*'    # Tags como v1.2.3
-      - '*.*.*'      # Tags como 1.2.3
     # branches:
     #   - main
 
@@ -40,8 +39,8 @@ jobs:
       - name: Check semantic tag format
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
-          if [[ ! "$TAG_NAME" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ El tag $TAG_NAME no es una versión semántica (ej: v1.0.0 o 2.3.4)"
+          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ El tag $TAG_NAME no es una versión semántica válida (debe comenzar con 'v' seguido de números, ej: v1.0.0)"
             exit 1
           fi
           echo "✅ Tag válido: $TAG_NAME"
@@ -109,35 +108,26 @@ jobs:
       - name: Build, tag, and push image with multiple tags
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          GIT_BRANCH: ${{ github.ref_name }}  # Nombre del branch o tag
-          IS_TAG_EVENT: ${{ startsWith(github.ref, 'refs/tags/') }}  # True si es un tag
+          GIT_BRANCH: ${{ github.ref_name }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
-          # Sanitización de nombres para Docker (solo caracteres permitidos)
-          SANITIZED_BRANCH=$(echo "$GIT_BRANCH" | tr -cd '[:alnum:]-._' | sed 's/^[.-]*//' | cut -c 1-50)
+          # Sanitización del tag (v*.*.* ya cumple con las reglas de Docker)
+          SANITIZED_TAG=$(echo "$GIT_BRANCH" | tr -cd '[:alnum:]-._' | sed 's/^[.-]*//' | cut -c 1-50)
 
-          # Tags principales
+          # Tags definitivos
           BASE_TAG="$ECR_REGISTRY/$ECR_REPOSITORY"
           TAG_SHA="$BASE_TAG:$COMMIT_SHA"
-          TAG_BRANCH="$BASE_TAG:$SANITIZED_BRANCH"
+          TAG_VERSION="$BASE_TAG:$SANITIZED_TAG"
 
-          # Tag adicional si es un evento de tag de Git
-          if [ "$IS_TAG_EVENT" = "true" ]; then
-            GIT_TAG=$(echo "$GIT_BRANCH" | sed 's/^v//')  # Remueve prefijo 'v' si existe
-            TAG_VERSION="$BASE_TAG:$GIT_TAG"
-            docker build -t $TAG_SHA -t $TAG_BRANCH -t $TAG_VERSION .
-            docker push $TAG_VERSION  # Pushear el tag de versión explícitamente
-          else
-            docker build -t $TAG_SHA -t $TAG_BRANCH .
-          fi
+          # Construir y taggear la imagen
+          docker build -t $TAG_SHA -t $TAG_VERSION .
 
-          # Pushear todos los tags
+          # Pushear ambos tags
           docker push $TAG_SHA
-          docker push $TAG_BRANCH
+          docker push $TAG_VERSION
 
-          # Output para el job de deploy (usamos el SHA como referencia única)
+          # Output para el deploy
           echo "image=$TAG_SHA" >> $GITHUB_OUTPUT
-
   deploy:
     name: Deploy to ECS
     runs-on: ubuntu-latest
