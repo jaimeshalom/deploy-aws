@@ -19,6 +19,10 @@ describe('AppController (e2e)', () => {
     return request(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect('Hello World!');
+      .expect((res) => {
+        expect(res.text).toMatch(
+          /^App version: 1\.0\.0\. Hostname: .+\. New deploy from github action 🎉!$/,
+        );
+      });
   });
 });
