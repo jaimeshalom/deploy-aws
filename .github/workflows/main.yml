@@ -2,8 +2,11 @@ name: Deploy NestJS on ECR
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*.*.*'    # Tags como v1.2.3
+      - '*.*.*'      # Tags como 1.2.3
+    # branches:
+    #   - main
 
 env:
   AWS_REGION: us-east-1
@@ -34,6 +37,15 @@ jobs:
           --health-retries 5
         # --- Fin Healthcheck ---
     steps:
+      - name: Check semantic tag format
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          if [[ ! "$TAG_NAME" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ El tag $TAG_NAME no es una versión semántica (ej: v1.0.0 o 2.3.4)"
+            exit 1
+          fi
+          echo "✅ Tag válido: $TAG_NAME"
+
       - name: Checkout code
         uses: actions/checkout@v4
 
