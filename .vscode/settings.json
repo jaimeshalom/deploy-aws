@@ -1,0 +1,10 @@
+{
+  "cSpell.language": "en,es",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features",
+    "editor.formatOnSave":true
+  },
+}
