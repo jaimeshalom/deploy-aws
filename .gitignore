@@ -1,7 +1,8 @@
 # compiled output
 /dist
 /node_modules
-/build
+
+.env
 
 # Logs
 logs
@@ -20,7 +21,8 @@ lerna-debug.log*
 /.nyc_output
 
 # IDEs and editors
-/.idea
+.idea
+.fleet
 .project
 .classpath
 .c9/
@@ -35,22 +37,14 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+docker-compose.override.yml
+data
 
-# temp directory
-.temp
-.tmp
+# http-client
+http-client.env.json
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
+uploads/*
+dumped-database*.sql
+.env.migrate
 
-# Diagnostic reports (https://nodejs.org/api/report.html)
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+bun.lockb
