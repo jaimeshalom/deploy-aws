@@ -111,14 +111,14 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           GIT_BRANCH: ${{ github.ref_name }}  # Nombre del branch o tag
           IS_TAG_EVENT: ${{ startsWith(github.ref, 'refs/tags/') }}  # True si es un tag
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           # Sanitización de nombres para Docker (solo caracteres permitidos)
           SANITIZED_BRANCH=$(echo "$GIT_BRANCH" | tr -cd '[:alnum:]-._' | sed 's/^[.-]*//' | cut -c 1-50)
-          COMMIT_SHA_SHORT=${{ github.sha | substr(0,20) }}
 
           # Tags principales
           BASE_TAG="$ECR_REGISTRY/$ECR_REPOSITORY"
-          TAG_SHA="$BASE_TAG:$COMMIT_SHA_SHORT"
+          TAG_SHA="$BASE_TAG:$COMMIT_SHA"
           TAG_BRANCH="$BASE_TAG:$SANITIZED_BRANCH"
 
           # Tag adicional si es un evento de tag de Git
