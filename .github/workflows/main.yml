@@ -50,8 +50,8 @@ jobs:
         run: |
           echo "Waiting for MongoDB to start..."
           i=0
-          # Intenta conectar al puerto 27017 del host 'mongo' hasta 30 veces (aprox 30 segundos)
-          until nc -z mongo 27017; do
+          # Intenta conectar al puerto 27017 de localhost hasta 30 veces
+          until nc -z localhost 27017; do
             i=$((i+1))
             if [ $i -ge 30 ]; then
               echo "$(date) - MongoDB service timed out."
@@ -70,7 +70,7 @@ jobs:
 
       - name: Run e2e tests
         env:
-          MONGODB_URI: mongodb://mongo:27017/test_db
+          MONGODB_URI: mongodb://localhost:27017/test_db
         run: npm run test:e2e
 
   create-docker-image:
