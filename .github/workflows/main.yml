@@ -23,6 +23,16 @@ jobs:
         image: mongo:6.0.2
         ports:
           - 27017:27017
+        # --- Añadir Healthcheck Básico al Servicio ---
+        # Esto le dice a Docker que espere hasta que el comando tenga éxito
+        # antes de considerar el servicio "saludable". Aunque Actions no
+        # lo use directamente para esperar, es buena práctica.
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand(\"ping\").ok' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        # --- Fin Healthcheck ---
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,6 +45,22 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Wait for MongoDB
+        run: |
+          echo "Waiting for MongoDB to start..."
+          i=0
+          # Intenta conectar al puerto 27017 del host 'mongo' hasta 30 veces (aprox 30 segundos)
+          until nc -z mongo 27017; do
+            i=$((i+1))
+            if [ $i -ge 30 ]; then
+              echo "$(date) - MongoDB service timed out."
+              exit 1
+            fi
+            echo "$(date) - Waiting for MongoDB service... ($i/30)"
+            sleep 1
+          done
+          echo "MongoDB started!"
 
       - name: Run linter
         run: npm run lint
