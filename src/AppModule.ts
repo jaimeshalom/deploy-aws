@@ -7,9 +7,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { RequestMetaMiddleware } from './modules/shared/domain/middlewares/RequestMetaMiddleware';
 import { MardukMongooseModule } from './modules/shared/infrastructure/MardukMongooseModule';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }), MardukMongooseModule],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule implements NestModule {
   static port: number;
