@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'    # Tags como v1.2.3
+      - 'v*.*.*.*'    # Tags como v1.2.3.4
     # branches:
     #   - main
 
@@ -34,8 +35,10 @@ jobs:
       - name: Check semantic tag format
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
-          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ El tag $TAG_NAME no es una versión semántica válida (debe comenzar con 'v' seguido de números, ej: v1.0.0)"
+          # Permitimos vX.Y.Z o vX.Y.Z.W
+          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "❌ El tag '$TAG_NAME' no es una versión semántica válida."
+            echo "   Debe tener el formato 'vMAJOR.MINOR.PATCH' o 'vMAJOR.MINOR.PATCH.BUILD', por ejemplo v1.2.3 o v1.2.3.4"
             exit 1
           fi
           echo "✅ Tag válido: $TAG_NAME"
