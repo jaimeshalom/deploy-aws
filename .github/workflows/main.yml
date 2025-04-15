@@ -7,14 +7,14 @@ on:
     # branches:
     #   - main
 
-env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY: marduk/ari-integration
-  ECS_SERVICE: ari-integration-service
-  ECS_CLUSTER: ari-integration-cluster
-  ECS_TASK_DEFINITION: ari-integration-task-definition
-  CONTAINER_NAME: ari-integration-container
-  NODE_VERSION: '22'
+# env:
+#   AWS_REGION: us-east-1
+#   ECR_REPOSITORY: namespace/app-name
+#   ECS_SERVICE: app-name-service
+#   ECS_CLUSTER: app-name-cluster
+#   ECS_TASK_DEFINITION: app-name-task-definition
+#   CONTAINER_NAME: app-name-container
+#   NODE_VERSION: '22'
 
 jobs:
   test-and-lint:
@@ -25,16 +25,11 @@ jobs:
         image: mongo:6.0.2
         ports:
           - 27017:27017
-        # --- Añadir Healthcheck Básico al Servicio ---
-        # Esto le dice a Docker que espere hasta que el comando tenga éxito
-        # antes de considerar el servicio "saludable". Aunque Actions no
-        # lo use directamente para esperar, es buena práctica.
         options: >-
           --health-cmd "mongosh --eval 'db.runCommand(\"ping\").ok' --quiet"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        # --- Fin Healthcheck ---
     steps:
       - name: Check semantic tag format
         run: |
@@ -51,7 +46,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ vars.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
@@ -99,7 +94,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -111,6 +106,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           GIT_BRANCH: ${{ github.ref_name }}
           COMMIT_SHA: ${{ github.sha }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
         run: |
           # Sanitización del tag (v*.*.* ya cumple con las reglas de Docker)
           SANITIZED_TAG=$(echo "$GIT_BRANCH" | tr -cd '[:alnum:]-._' | sed 's/^[.-]*//' | cut -c 1-50)
@@ -129,6 +125,7 @@ jobs:
 
           # Output para el deploy
           echo "image=$TAG_SHA" >> $GITHUB_OUTPUT
+
   deploy:
     name: Deploy to ECS
     runs-on: ubuntu-latest
@@ -139,7 +136,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -147,20 +144,20 @@ jobs:
 
       - name: Download task definition
         run: |
-          aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} --query taskDefinition > task-definition.json
+          aws ecs describe-task-definition --task-definition ${{ vars.ECS_TASK_DEFINITION }} --query taskDefinition > task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
-          container-name: ${{ env.CONTAINER_NAME }}
+          container-name: ${{ vars.CONTAINER_NAME }}
           image: ${{ needs.create-docker-image.outputs.image }}
 
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
+          service: ${{ vars.ECS_SERVICE }}
+          cluster: ${{ vars.ECS_CLUSTER }}
           wait-for-service-stability: true
