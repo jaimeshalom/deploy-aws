@@ -129,8 +129,8 @@ jobs:
           # Output para el deploy
           echo "image=$TAG_SHA" >> $GITHUB_OUTPUT
 
-  deploy:
-    name: Deploy to ECS
+  deploy-infra:
+    name: Deploy Infrastructure with Terraform
     runs-on: ubuntu-latest
     needs: create-docker-image
     steps:
@@ -141,26 +141,60 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      - name: Checkout Terraform Code
+        uses: actions/checkout@v4
+        with:
+          repository: 'jaimeshalom/aws-terraform'
+          path: './terraform-infra' # Directorio donde se descargará el código
+          # token: ${{ secrets.TERRAFORM_REPO_PAT }} # Añade esto si el repo Terraform es privado
 
-      - name: Download task definition
+      # 3. Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        # Puedes fijar una versión si es necesario
+        # with:
+        #   terraform_version: 1.6.x
+
+      # 4. Terraform Init (en el directorio del código Terraform)
+      - name: Terraform Init
+        id: init
+        run: terraform init -input=false
+        working-directory: ./terraform-infra # Especifica el directorio
+
+      # 5. Terraform Validate (Opcional pero bueno)
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+        working-directory: ./terraform-infra
+
+      # 6. Terraform Plan (Opcional pero recomendado)
+      - name: Terraform Plan
+        id: plan
         run: |
-          aws ecs describe-task-definition --task-definition ${{ vars.ECS_TASK_DEFINITION }} --query taskDefinition > task-definition.json
+          terraform plan -input=false -no-color \
+            -var="image_tag=${{ needs.create-docker-image.outputs.image_tag }}" \
+            -var="aws_region=${{ vars.AWS_REGION }}" \
+            -var="project_name=${{ vars.PROJECT_NAME }}" \
+            -var="environment=${{ vars.ENVIRONMENT }}" \
+            -var="owner=${{ vars.OWNER }}" \
+            -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
+            -out=tfplan
+        working-directory: ./terraform-infra
+        continue-on-error: true # Para ver el plan incluso si falla
 
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition.json
-          container-name: ${{ vars.CONTAINER_NAME }}
-          image: ${{ needs.create-docker-image.outputs.image }}
-
-      - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ vars.ECS_SERVICE }}
-          cluster: ${{ vars.ECS_CLUSTER }}
-          wait-for-service-stability: true
+      # 7. Terraform Apply (¡Aquí se aplica!)
+      - name: Terraform Apply
+        # Puedes añadir condiciones, como sólo aplicar si el plan fue exitoso
+        # if: steps.plan.outcome == 'success'
+        run: terraform apply -auto-approve -input=false tfplan
+        working-directory: ./terraform-infra
+        # --- Alternativa si no guardaste el plan ---
+        # run: |
+        #  terraform apply -auto-approve -input=false \
+        #    -var="image_tag=${{ needs.create-docker-image.outputs.image_tag }}" \
+        #    -var="aws_region=${{ vars.AWS_REGION }}" \
+        #    -var="project_name=${{ vars.PROJECT_NAME }}" \
+        #    -var="environment=${{ vars.ENVIRONMENT }}" \
+        #    -var="owner=${{ vars.OWNER }}" \
+        #    -var="mongodb_uri=${{ secrets.MONGODB_URI }}"
+        # working-directory: ./terraform-infra
