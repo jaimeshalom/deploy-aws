@@ -5,8 +5,8 @@ on:
     tags:
       - 'v*.*.*'    # Tags como v1.2.3
       - 'v*.*.*.*'    # Tags como v1.2.3.4
-    # branches:
-    #   - main
+    branches:
+      - main
 
 # env:
 #   AWS_REGION: us-east-1
