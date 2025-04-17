@@ -132,7 +132,7 @@ jobs:
         id: plan
         run: |
           terraform plan -input=false -no-color \
-            -var="image_tag=latest" \
+            -var="image_tag="" \
             -var="aws_region=${{ vars.AWS_REGION }}" \
             -var="project_name=${{ vars.PROJECT_NAME }}" \
             -var="environment=${{ vars.ENVIRONMENT }}" \
