@@ -108,6 +108,13 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Checkout Terraform Code
+        uses: actions/checkout@v4
+        with:
+          repository: 'jaimeshalom/aws-terraform'
+          path: './terraform-infra' # Directorio donde se descargará el código
+          # token: ${{ secrets.TERRAFORM_REPO_PAT }} # Añade esto si el repo Terraform es privado
+
       - name: Setup Terraform
         if: steps.check-repo.outputs.exists == 'false'
         uses: hashicorp/setup-terraform@v3
