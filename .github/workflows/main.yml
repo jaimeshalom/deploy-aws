@@ -186,23 +186,34 @@ jobs:
 
           # Tags definitivos
           BASE_TAG="$ECR_REGISTRY/$ECR_REPOSITORY"
-          TAG_SHA="$BASE_TAG:$COMMIT_SHA"
+          TAG_SHA="$BASE_TAG:${COMMIT_SHA}-${GITHUB_RUN_ID}"
           TAG_VERSION="$BASE_TAG:$SANITIZED_TAG"
 
           # Construir y taggear la imagen
-          docker build -t $TAG_SHA -t $TAG_VERSION .
+          docker build -t "$TAG_SHA" -t "$TAG_VERSION" .
 
-          if ! aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$COMMIT_SHA" > /dev/null 2>&1; then
-            echo "Pushing SHA tag $COMMIT_SHA..."
-            docker push "$TAG_SHA"
+          # Verificar si la imagen con el tag SHA existe
+          echo "Checking if image with tag ${COMMIT_SHA}-${GITHUB_RUN_ID} exists..."
+          DESCRIBE_OUTPUT=$(aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="${COMMIT_SHA}-${GITHUB_RUN_ID}" 2>&1)
+          EXIT_CODE=$?
+          echo "$DESCRIBE_OUTPUT"
+          if [ $EXIT_CODE -ne 0 ]; then
+            if echo "$DESCRIBE_OUTPUT" | grep -q "ImageNotFoundException"; then
+              echo "Image does not exist. Pushing SHA tag ${COMMIT_SHA}-${GITHUB_RUN_ID}..."
+              docker push "$TAG_SHA"
+            else
+              echo "Error checking image existence: $DESCRIBE_OUTPUT"
+              exit 1
+            fi
           else
-            echo "SHA tag $COMMIT_SHA already exists. Skipping push."
+            echo "Image already exists. Skipping push."
           fi
-          # Siempre pushear el tag de versión, si se require reconstruir hay que hacer push de un nuevo tag versionando el patch del build.
+
+          # Siempre pushear el tag de versión
           docker push "$TAG_VERSION"
 
           # Output para el deploy
-          echo "image_tag=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "image_tag=${COMMIT_SHA}-${GITHUB_RUN_ID}" >> $GITHUB_OUTPUT
           echo "image_version=$SANITIZED_TAG" >> $GITHUB_OUTPUT
 
   deploy-infra:
