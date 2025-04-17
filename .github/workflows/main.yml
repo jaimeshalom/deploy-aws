@@ -91,7 +91,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Check if ECR repository exists
-        id: check-
+        id: check-repo
         env:
           ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
         run: |
@@ -191,9 +191,14 @@ jobs:
           # Construir y taggear la imagen
           docker build -t $TAG_SHA -t $TAG_VERSION .
 
-          # Pushear ambos tags
-          docker push $TAG_SHA
-          docker push $TAG_VERSION
+          if ! aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$COMMIT_SHA" > /dev/null 2>&1; then
+            echo "Pushing SHA tag $COMMIT_SHA..."
+            docker push "$TAG_SHA"
+          else
+            echo "SHA tag $COMMIT_SHA already exists. Skipping push."
+          fi
+          # Siempre pushear el tag de versión, si se require reconstruir hay que hacer push de un nuevo tag versionando el patch del build.
+          docker push "$TAG_VERSION"
 
           # Output para el deploy
           echo "image_tag=$COMMIT_SHA" >> $GITHUB_OUTPUT
