@@ -8,15 +8,6 @@ on:
     # branches:
     #   - main
 
-# env:
-#   AWS_REGION: us-east-1
-#   ECR_REPOSITORY: namespace/app-name
-#   ECS_SERVICE: app-name-service
-#   ECS_CLUSTER: app-name-cluster
-#   ECS_TASK_DEFINITION: app-name-task-definition
-#   CONTAINER_NAME: app-name-container
-#   NODE_VERSION: '22'
-
 jobs:
   test-and-lint:
     name: Test and Lint
@@ -99,7 +90,8 @@ jobs:
       - name: Check if ECR repository exists
         id: check-repo
         run: |
-          REPO_NAME=${{ vars.ECR_REPOSITORY }}
+          REPO_NAME="${{ vars.PROJECT_NAME }}-${{ vars.ENVIRONMENT }}-ecr_repository"
+          echo "Checking for ECR repository: $REPO_NAME"
           if aws ecr describe-repositories --repository-names "$REPO_NAME" > /dev/null 2>&1; then
             echo "Repository exists"
             echo "exists=true" >> $GITHUB_OUTPUT
