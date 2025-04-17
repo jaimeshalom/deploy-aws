@@ -132,18 +132,18 @@ jobs:
         working-directory: ./terraform-infra
 
       # Aplicar SOLO la creación del ECR Repo usando -target
+      # Nota: NO necesitamos pasar image_tag, git_version_tag, mongodb_uri aquí
+      # porque solo estamos creando el recurso ECR y sus dependencias básicas.
       - name: Terraform Apply for ECR Repository Only
         if: steps.check-repo.outputs.exists == 'false'
         run: |
           terraform apply -auto-approve -input=false \
             -target="module.ecs_service.aws_ecr_repository.ecr_repository" \
-            -var="aws_profile=${{ vars.AWS_PROFILE }}" \ # Necesario para el provider dentro del módulo
+            -var="aws_profile=${{ vars.AWS_PROFILE }}" \
             -var="aws_region=${{ vars.AWS_REGION }}" \
             -var="project_name=${{ vars.PROJECT_NAME }}" \
             -var="environment=${{ vars.ENVIRONMENT }}" \
             -var="owner=${{ vars.OWNER }}"
-            # NO necesitamos pasar image_tag, git_version_tag, mongodb_uri aquí
-            # porque solo estamos creando el recurso ECR.
         working-directory: ./terraform-infra
 
   create-docker-image:
