@@ -82,6 +82,53 @@ jobs:
           MONGODB_URI: mongodb://localhost:27017/test_db
         run: npm run test:e2e
 
+  check-ecr-and-create:
+    name: Check and Create ECR Repository
+    runs-on: ubuntu-latest
+    needs: create-docker-image
+    outputs:
+      repository_exists: ${{ steps.check-repo.outputs.exists }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Check if ECR repository exists
+        id: check-repo
+        run: |
+          REPO_NAME=${{ vars.ECR_REPOSITORY }}
+          if aws ecr describe-repositories --repository-names "$REPO_NAME" > /dev/null 2>&1; then
+            echo "Repository exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Repository does not exist"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout Terraform Code
+        if: steps.check-repo.outputs.exists == 'false'
+        uses: actions/checkout@v4
+        with:
+          repository: 'jaimeshalom/aws-terraform'
+          path: './terraform-infra'
+
+      - name: Setup Terraform
+        if: steps.check-repo.outputs.exists == 'false'
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        if: steps.check-repo.outputs.exists == 'false'
+        run: terraform init -input=false
+        working-directory: ./terraform-infra
+
+      - name: Terraform Apply ECR Repository
+        if: steps.check-repo.outputs.exists == 'false'
+        run: terraform apply -auto-approve -input=false -target=aws_ecr_repository.app_repository
+        working-directory: ./terraform-infra
+
   create-docker-image:
     name: Build and Push Image
     runs-on: ubuntu-latest
