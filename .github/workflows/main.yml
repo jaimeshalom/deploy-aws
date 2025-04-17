@@ -189,27 +189,8 @@ jobs:
           TAG_SHA="$BASE_TAG:${COMMIT_SHA}-${GITHUB_RUN_ID}"
           TAG_VERSION="$BASE_TAG:$SANITIZED_TAG"
 
-          # Construir y taggear la imagen
           docker build -t "$TAG_SHA" -t "$TAG_VERSION" .
-
-          # Verificar si la imagen con el tag SHA existe
-          echo "Checking if image with tag ${COMMIT_SHA}-${GITHUB_RUN_ID} exists..."
-          DESCRIBE_OUTPUT=$(aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="${COMMIT_SHA}-${GITHUB_RUN_ID}" 2>&1)
-          EXIT_CODE=$?
-          echo "$DESCRIBE_OUTPUT"
-          if [ $EXIT_CODE -ne 0 ]; then
-            if echo "$DESCRIBE_OUTPUT" | grep -q "ImageNotFoundException"; then
-              echo "Image does not exist. Pushing SHA tag ${COMMIT_SHA}-${GITHUB_RUN_ID}..."
-              docker push "$TAG_SHA"
-            else
-              echo "Error checking image existence: $DESCRIBE_OUTPUT"
-              exit 1
-            fi
-          else
-            echo "Image already exists. Skipping push."
-          fi
-
-          # Siempre pushear el tag de versión
+          docker push "$TAG_SHA"
           docker push "$TAG_VERSION"
 
           # Output para el deploy
