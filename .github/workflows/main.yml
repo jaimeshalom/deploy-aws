@@ -157,6 +157,7 @@ jobs:
     needs: check-ecr-and-create
     outputs:
       image_tag: ${{ steps.build-push.outputs.image_tag }}
+      image_version: ${{ steps.build-push.outputs.image_version }} # El tag vX.Y.Z para metadata
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -202,6 +203,7 @@ jobs:
 
           # Output para el deploy
           echo "image_tag=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "image_version=$SANITIZED_TAG" >> $GITHUB_OUTPUT
 
   deploy-infra:
     name: Deploy Infrastructure with Terraform
@@ -247,6 +249,7 @@ jobs:
         run: |
           terraform plan -input=false -no-color \
             -var="image_tag=${{ needs.create-docker-image.outputs.image_tag }}" \
+            -var="git_version_tag=${{ needs.create-docker-image.outputs.image_version }}" \
             -var="aws_region=${{ vars.AWS_REGION }}" \
             -var="project_name=${{ vars.PROJECT_NAME }}" \
             -var="environment=${{ vars.ENVIRONMENT }}" \
