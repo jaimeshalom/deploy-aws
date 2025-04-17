@@ -132,8 +132,6 @@ jobs:
         id: plan
         run: |
           terraform plan -input=false -no-color \
-            # This tag is just a placeholder for when the repository does not yet exist,
-            # the final image tag will be set in the following steps.
             -var="image_tag=latest" \
             -var="aws_region=${{ vars.AWS_REGION }}" \
             -var="project_name=${{ vars.PROJECT_NAME }}" \
@@ -142,7 +140,7 @@ jobs:
             -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
             -out=tfplan
         working-directory: ./terraform-infra
-        continue-on-error: true # Para ver el plan incluso si falla
+        # continue-on-error: true # Para ver el plan incluso si falla
 
       - name: Terraform Apply
         if: steps.check-repo.outputs.exists == 'false'
@@ -249,7 +247,7 @@ jobs:
             -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
             -out=tfplan
         working-directory: ./terraform-infra
-        continue-on-error: true # Para ver el plan incluso si falla
+        # continue-on-error: true # Para ver el plan incluso si falla
 
       # 7. Terraform Apply (¡Aquí se aplica!)
       - name: Terraform Apply
