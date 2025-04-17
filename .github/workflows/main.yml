@@ -198,7 +198,7 @@ jobs:
           docker push $TAG_VERSION
 
           # Output para el deploy
-          echo "image_tag=$TAG_SHA" >> $GITHUB_OUTPUT
+          echo "image_tag=$COMMIT_SHA" >> $GITHUB_OUTPUT
 
   deploy-infra:
     name: Deploy Infrastructure with Terraform
