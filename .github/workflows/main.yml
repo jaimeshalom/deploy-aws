@@ -77,11 +77,11 @@ jobs:
         run: npm run test:e2e
 
   check-ecr-and-create:
-    name: Check and Create ECR Repository
+    name: Ensure ECR Repository Exists
     runs-on: ubuntu-latest
     needs: test-and-lint
     outputs:
-      repository_exists: ${{ steps.check-repo.outputs.exists }}
+      repository_exists: ${{ steps.check-repo.outputs.exists }} # Mantenemos el output por si acaso
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -93,23 +93,25 @@ jobs:
       - name: Check if ECR repository exists
         id: check-repo
         env:
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }} # Definido al nivel del workflow
         run: |
           echo "Checking for ECR repository: $ECR_REPOSITORY"
-          if aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" > /dev/null 2>&1; then
-            echo "Repository exists"
+          if aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" --region "${{ vars.AWS_REGION }}" > /dev/null 2>&1; then
+            echo "✅ Repository '$ECR_REPOSITORY' already exists."
             echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "Repository does not exist"
+            echo "ℹ️ Repository '$ECR_REPOSITORY' does not exist. Will attempt to create it via Terraform."
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
+      # --- Pasos de Terraform (solo si el repo NO existe) ---
       - name: Checkout Terraform Code
+        if: steps.check-repo.outputs.exists == 'false'
         uses: actions/checkout@v4
         with:
-          repository: 'jaimeshalom/aws-terraform'
-          path: './terraform-infra' # Directorio donde se descargará el código
-          # token: ${{ secrets.TERRAFORM_REPO_PAT }} # Añade esto si el repo Terraform es privado
+          repository: 'jaimeshalom/aws-terraform' # Tu repo de Terraform
+          path: './terraform-infra'             # Descarga aquí
+          # token: ${{ secrets.TERRAFORM_REPO_PAT }} # Si es privado
 
       - name: Setup Terraform
         if: steps.check-repo.outputs.exists == 'false'
@@ -118,35 +120,30 @@ jobs:
       - name: Terraform Init
         if: steps.check-repo.outputs.exists == 'false'
         id: init
+        # Terraform leerá automáticamente el bloque backend "s3" del main.tf en ./terraform-infra
         run: terraform init -input=false
-        working-directory: ./terraform-infra
+        working-directory: ./terraform-infra # Ejecuta en el directorio del código TF
 
+      # Opcional pero recomendado: Validar la configuración
       - name: Terraform Validate
         if: steps.check-repo.outputs.exists == 'false'
         id: validate
         run: terraform validate -no-color
         working-directory: ./terraform-infra
 
-      - name: Terraform Plan
+      # Aplicar SOLO la creación del ECR Repo usando -target
+      - name: Terraform Apply for ECR Repository Only
         if: steps.check-repo.outputs.exists == 'false'
-        id: plan
         run: |
-          terraform plan -input=false -no-color \
-            -var="image_tag=${{ needs.create-docker-image.outputs.image_tag }}" \
+          terraform apply -auto-approve -input=false \
+            -target="module.ecs_service.aws_ecr_repository.ecr_repository" \
+            -var="aws_profile=${{ vars.AWS_PROFILE }}" \ # Necesario para el provider dentro del módulo
             -var="aws_region=${{ vars.AWS_REGION }}" \
             -var="project_name=${{ vars.PROJECT_NAME }}" \
             -var="environment=${{ vars.ENVIRONMENT }}" \
-            -var="owner=${{ vars.OWNER }}" \
-            -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
-            -out=tfplan
-        working-directory: ./terraform-infra
-        # continue-on-error: true # Para ver el plan incluso si falla
-
-      - name: Terraform Apply
-        if: steps.check-repo.outputs.exists == 'false'
-        # Puedes añadir condiciones, como sólo aplicar si el plan fue exitoso
-        # if: steps.plan.outcome == 'success'
-        run: terraform apply -auto-approve -input=false tfplan
+            -var="owner=${{ vars.OWNER }}"
+            # NO necesitamos pasar image_tag, git_version_tag, mongodb_uri aquí
+            # porque solo estamos creando el recurso ECR.
         working-directory: ./terraform-infra
 
   create-docker-image:
