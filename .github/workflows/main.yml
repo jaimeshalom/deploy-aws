@@ -108,25 +108,42 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Checkout Terraform Code
-        if: steps.check-repo.outputs.exists == 'false'
-        uses: actions/checkout@v4
-        with:
-          repository: 'jaimeshalom/aws-terraform'
-          path: './terraform-infra'
-
       - name: Setup Terraform
         if: steps.check-repo.outputs.exists == 'false'
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
         if: steps.check-repo.outputs.exists == 'false'
+        id: init
         run: terraform init -input=false
         working-directory: ./terraform-infra
 
-      - name: Terraform Apply ECR Repository
+      - name: Terraform Validate
         if: steps.check-repo.outputs.exists == 'false'
-        run: terraform apply -auto-approve -input=false -target=aws_ecr_repository.app_repository
+        id: validate
+        run: terraform validate -no-color
+        working-directory: ./terraform-infra
+
+      - name: Terraform Plan
+        if: steps.check-repo.outputs.exists == 'false'
+        id: plan
+        run: |
+          terraform plan -input=false -no-color \
+            -var="image_tag=${{ needs.create-docker-image.outputs.image_tag }}" \
+            -var="aws_region=${{ vars.AWS_REGION }}" \
+            -var="project_name=${{ vars.PROJECT_NAME }}" \
+            -var="environment=${{ vars.ENVIRONMENT }}" \
+            -var="owner=${{ vars.OWNER }}" \
+            -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
+            -out=tfplan
+        working-directory: ./terraform-infra
+        continue-on-error: true # Para ver el plan incluso si falla
+
+      - name: Terraform Apply
+        if: steps.check-repo.outputs.exists == 'false'
+        # Puedes añadir condiciones, como sólo aplicar si el plan fue exitoso
+        # if: steps.plan.outcome == 'success'
+        run: terraform apply -auto-approve -input=false tfplan
         working-directory: ./terraform-infra
 
   create-docker-image:
