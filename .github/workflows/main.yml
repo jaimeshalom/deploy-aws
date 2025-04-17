@@ -5,8 +5,8 @@ on:
     tags:
       - 'v*.*.*'    # Tags como v1.2.3
       - 'v*.*.*.*'    # Tags como v1.2.3.4
-    branches:
-      - main
+    # branches:
+    #   - main
 
 # env:
 #   AWS_REGION: us-east-1
@@ -85,7 +85,7 @@ jobs:
   check-ecr-and-create:
     name: Check and Create ECR Repository
     runs-on: ubuntu-latest
-    needs: create-docker-image
+    needs: test-and-lint
     outputs:
       repository_exists: ${{ steps.check-repo.outputs.exists }}
     steps:
@@ -149,7 +149,7 @@ jobs:
   create-docker-image:
     name: Build and Push Image
     runs-on: ubuntu-latest
-    needs: test-and-lint
+    needs: check-ecr-and-create
     outputs:
       image: ${{ steps.build-push.outputs.image }}
     steps:
