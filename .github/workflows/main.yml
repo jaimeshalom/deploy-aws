@@ -144,7 +144,8 @@ jobs:
             -var="project_name=${{ vars.PROJECT_NAME }}" \
             -var="environment=${{ vars.ENVIRONMENT }}" \
             -var="owner=${{ vars.OWNER }}" \
-            -var="domain_name=${{ vars.DOMAIN_NAME }}"
+            -var="domain_name=${{ vars.DOMAIN_NAME }}" \
+            -var="route53_zone_name=${{ vars.ROUTE53_ZONE_NAME }}"
         working-directory: ./terraform-infra
 
   create-docker-image:
@@ -245,6 +246,7 @@ jobs:
             -var="owner=${{ vars.OWNER }}" \
             -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
             -var="domain_name=${{ vars.DOMAIN_NAME }}" \
+            -var="route53_zone_name=${{ vars.ROUTE53_ZONE_NAME }}" \
             -out=tfplan
         working-directory: ./terraform-infra
         # continue-on-error: true # Para ver el plan incluso si falla
