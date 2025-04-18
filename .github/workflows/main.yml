@@ -143,8 +143,8 @@ jobs:
             -var="aws_region=${{ vars.AWS_REGION }}" \
             -var="project_name=${{ vars.PROJECT_NAME }}" \
             -var="environment=${{ vars.ENVIRONMENT }}" \
-            -var="owner=${{ vars.OWNER }}"
-            -var="domain_name=${{ vars.DOMAIN_NAME }}" \
+            -var="owner=${{ vars.OWNER }}" \
+            -var="domain_name=${{ vars.DOMAIN_NAME }}"
         working-directory: ./terraform-infra
 
   create-docker-image:
@@ -192,6 +192,7 @@ jobs:
           # Output para el deploy
           echo "image_tag=${COMMIT_SHA}-${GITHUB_RUN_ID}" >> $GITHUB_OUTPUT
           echo "image_version=$SANITIZED_TAG" >> $GITHUB_OUTPUT
+
 
   deploy-infra:
     name: Deploy Infrastructure with Terraform
