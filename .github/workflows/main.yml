@@ -242,6 +242,7 @@ jobs:
             -var="environment=${{ vars.ENVIRONMENT }}" \
             -var="owner=${{ vars.OWNER }}" \
             -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
+            -var="domain_name=${{ vars.DOMAIN_NAME }}" \
             -out=tfplan
         working-directory: ./terraform-infra
         # continue-on-error: true # Para ver el plan incluso si falla
