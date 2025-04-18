@@ -255,10 +255,17 @@ jobs:
         working-directory: ./terraform-infra
         # continue-on-error: true # Para ver el plan incluso si falla
 
-      # Mensaje si NO hay API Key de Infracost
+      - name: Check Infracost API Key
+        id: check_infracost_key
+        run: |
+          if [ -n "${{ secrets.INFRACOST_API_KEY }}" ]; then
+            echo "has_key=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_key=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Inform about missing Infracost API Key
-        # Se ejecuta solo si el secret INFRACOST_API_KEY NO está configurado o está vacío
-        if: ${{ !secrets.INFRACOST_API_KEY }}
+        if: steps.check_infracost_key.outputs.has_key == 'false'
         run: |
           echo "::warning:: Infracost API Key (INFRACOST_API_KEY) not configured in GitHub secrets."
           echo "Skipping cost estimation."
@@ -267,14 +274,13 @@ jobs:
 
       # Se instala la CLI de Infracost
       - name: Setup Infracost
-        if: ${{ secrets.INFRACOST_API_KEY }}
+        if: steps.check_infracost_key.outputs.has_key == 'true'
         uses: infracost/actions/setup@v3
         # No se necesita API key aquí, solo es la instalación.
 
       # Ejecutar Infracost si HAY API Key
-      - name: Estimate costs using Infracost (if API key exists)
-        # Se ejecuta solo si el secret INFRACOST_API_KEY SÍ está configurado y no está vacío
-        if: ${{ secrets.INFRACOST_API_KEY }}
+      - name: Estimate costs using Infracost
+        if: steps.check_infracost_key.outputs.has_key == 'true'
         id: infracost_estimate
         run: |
           # Analiza el plan guardado y genera un desglose de costos en JSON
@@ -300,9 +306,8 @@ jobs:
         continue-on-error: true
 
       # Publicar comentario si HAY API Key y la estimación fue exitosa
-      - name: Post Infracost comment (if API key exists and estimate succeeded)
-        # Se ejecuta solo si la API Key existe Y el paso anterior 'infracost_estimate' tuvo éxito
-        if: steps.infracost_estimate.outcome == 'success' && ${{ secrets.INFRACOST_API_KEY }}
+      - name: Post Infracost comment
+        if: steps.check_infracost_key.outputs.has_key == 'true' && steps.infracost_estimate.outcome == 'success'
         uses: infracost/actions/comment@v3
         with:
           # Ruta al archivo JSON generado por Infracost
@@ -314,8 +319,8 @@ jobs:
           # Opcional: Especificar que el objetivo es el commit (útil en eventos push)
           # target_type: commit
 
-      - name: Estimate cost difference using Infracost (if API key exists)
-        if: ${{ secrets.INFRACOST_API_KEY }}
+      - name: Estimate cost difference using Infracost
+        if: steps.check_infracost_key.outputs.has_key == 'true'
         id: infracost_diff
         run: |
           # Analiza las diferencias de costo en el plan guardado y genera un diff en JSON
