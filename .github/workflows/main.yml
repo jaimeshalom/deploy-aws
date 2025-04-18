@@ -258,7 +258,7 @@ jobs:
       # Mensaje si NO hay API Key de Infracost
       - name: Inform about missing Infracost API Key
         # Se ejecuta solo si el secret INFRACOST_API_KEY NO está configurado o está vacío
-        if: secrets.INFRACOST_API_KEY == ''
+        if: ${{ secrets.INFRACOST_API_KEY == '' }}
         run: |
           echo "::warning:: Infracost API Key (INFRACOST_API_KEY) not configured in GitHub secrets."
           echo "Skipping cost estimation."
@@ -267,15 +267,15 @@ jobs:
 
       # Se instala la CLI de Infracost
       - name: Setup Infracost
-        if: secrets.INFRACOST_API_KEY != ''
+        if: ${{ secrets.INFRACOST_API_KEY != '' }}
         uses: infracost/actions/setup@v3
         # No se necesita API key aquí, solo es la instalación.
 
       # Ejecutar Infracost si HAY API Key
       - name: Estimate costs using Infracost (if API key exists)
         # Se ejecuta solo si el secret INFRACOST_API_KEY SÍ está configurado y no está vacío
-        if: secrets.INFRACOST_API_KEY != ''
-        id: infracost_estimate # Le damos un ID por si lo necesitamos
+        if: ${{ secrets.INFRACOST_API_KEY != '' }}
+        id: infracost_estimate
         run: |
           # Analiza el plan guardado y genera un desglose de costos en JSON
           infracost breakdown --path tfplan \
@@ -302,7 +302,7 @@ jobs:
       # Publicar comentario si HAY API Key y la estimación fue exitosa
       - name: Post Infracost comment (if API key exists and estimate succeeded)
         # Se ejecuta solo si la API Key existe Y el paso anterior 'infracost_estimate' tuvo éxito
-        if: steps.infracost_estimate.outcome == 'success' && secrets.INFRACOST_API_KEY != ''
+        if: ${{ steps.infracost_estimate.outcome == 'success' && secrets.INFRACOST_API_KEY != '' }}
         uses: infracost/actions/comment@v3
         with:
           # Ruta al archivo JSON generado por Infracost
@@ -315,13 +315,13 @@ jobs:
           # target_type: commit
 
       - name: Estimate cost difference using Infracost (if API key exists)
-        if: secrets.INFRACOST_API_KEY != ''
-        id: infracost_estimate
+        if: ${{ secrets.INFRACOST_API_KEY != '' }}
+        id: infracost_diff
         run: |
           # Analiza las diferencias de costo en el plan guardado y genera un diff en JSON
           infracost diff --path tfplan \
             --format json \
-            --out-file /tmp/infracost.json # El archivo de salida contendrá el diff
+            --out-file /tmp/infracost-diff.json # El archivo de salida contendrá el diff
 
           # Opcional: Muestra un resumen del diff en los logs de la action
           echo "--- Infracost Cost Difference Summary ---"
