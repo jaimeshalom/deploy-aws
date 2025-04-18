@@ -305,16 +305,6 @@ jobs:
         # Opcional: Evita que el workflow falle si Infracost tiene un problema
         continue-on-error: true
 
-      # Publicar comentario si HAY API Key y la estimación fue exitosa
-      - name: Post Infracost comment
-        if: steps.check_infracost_key.outputs.has_key == 'true' && steps.infracost_estimate.outcome == 'success'
-        run: |
-          infracost comment github --path=/tmp/infracost.json \
-                                   --repo=$GITHUB_REPOSITORY \
-                                   --github-token=${{ secrets.GITHUB_TOKEN }} \
-                                   --pull-request=${{ github.event.pull_request.number }} \
-                                   --behavior=update
-
       - name: Estimate cost difference using Infracost
         if: steps.check_infracost_key.outputs.has_key == 'true'
         id: infracost_diff
