@@ -308,16 +308,12 @@ jobs:
       # Publicar comentario si HAY API Key y la estimación fue exitosa
       - name: Post Infracost comment
         if: steps.check_infracost_key.outputs.has_key == 'true' && steps.infracost_estimate.outcome == 'success'
-        uses: infracost/actions/comment@v3
-        with:
-          # Ruta al archivo JSON generado por Infracost
-          path: /tmp/infracost.json
-          # El comportamiento 'update' intentará editar un comentario existente o crear uno nuevo
-          behavior: update
-          # Necesita el token para interactuar con la API de GitHub (postear comentarios)
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          # Opcional: Especificar que el objetivo es el commit (útil en eventos push)
-          # target_type: commit
+        run: |
+          infracost comment github --path=/tmp/infracost.json \
+                                   --repo=$GITHUB_REPOSITORY \
+                                   --github-token=${{ secrets.GITHUB_TOKEN }} \
+                                   --pull-request=${{ github.event.pull_request.number }} \
+                                   --behavior=update
 
       - name: Estimate cost difference using Infracost
         if: steps.check_infracost_key.outputs.has_key == 'true'
