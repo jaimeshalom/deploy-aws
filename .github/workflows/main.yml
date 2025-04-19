@@ -136,16 +136,18 @@ jobs:
       # porque solo estamos creando el recurso ECR y sus dependencias básicas.
       - name: Terraform Apply for ECR Repository Only
         if: steps.check-repo.outputs.exists == 'false'
+        env:
+          TF_VAR_aws_profile: ${{ vars.AWS_PROFILE }} # Asegúrate que esta variable existe en tu TF
+          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+          TF_VAR_environment: ${{ vars.ENVIRONMENT }}
+          TF_VAR_owner: ${{ vars.OWNER }}
+          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+          TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
+          # Asegúrate que estas son todas las variables necesarias para que el apply con -target funcione
         run: |
           terraform apply -auto-approve -input=false \
-            -target="module.ecs_service.aws_ecr_repository.ecr_repository" \
-            -var="aws_profile=${{ vars.AWS_PROFILE }}" \
-            -var="aws_region=${{ vars.AWS_REGION }}" \
-            -var="project_name=${{ vars.PROJECT_NAME }}" \
-            -var="environment=${{ vars.ENVIRONMENT }}" \
-            -var="owner=${{ vars.OWNER }}" \
-            -var="domain_name=${{ vars.DOMAIN_NAME }}" \
-            -var="route53_zone_name=${{ vars.ROUTE53_ZONE_NAME }}"
+            -target="module.ecs_service.aws_ecr_repository.ecr_repository"
         working-directory: ./terraform-infra
 
   create-docker-image:
@@ -240,18 +242,18 @@ jobs:
       # 6. Terraform Plan (Opcional pero recomendado)
       - name: Terraform Plan
         id: plan
+        env:
+          TF_VAR_image_tag: ${{ needs.create-docker-image.outputs.image_tag }}
+          TF_VAR_git_version_tag: ${{ needs.create-docker-image.outputs.image_version }}
+          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+          TF_VAR_environment: ${{ vars.ENVIRONMENT }}
+          TF_VAR_owner: ${{ vars.OWNER }}
+          TF_VAR_mongodb_uri: ${{ secrets.MONGODB_URI }} # Usar secrets para valores sensibles
+          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+          TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
         run: |
-          terraform plan -input=false -no-color \
-            -var="image_tag=${{ needs.create-docker-image.outputs.image_tag }}" \
-            -var="git_version_tag=${{ needs.create-docker-image.outputs.image_version }}" \
-            -var="aws_region=${{ vars.AWS_REGION }}" \
-            -var="project_name=${{ vars.PROJECT_NAME }}" \
-            -var="environment=${{ vars.ENVIRONMENT }}" \
-            -var="owner=${{ vars.OWNER }}" \
-            -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
-            -var="domain_name=${{ vars.DOMAIN_NAME }}" \
-            -var="route53_zone_name=${{ vars.ROUTE53_ZONE_NAME }}" \
-            -out=tfplan
+          terraform plan -input=false -no-color -out=tfplan
         working-directory: ./terraform-infra
         # continue-on-error: true # Para ver el plan incluso si falla
 
@@ -333,13 +335,3 @@ jobs:
         # if: steps.plan.outcome == 'success'
         run: terraform apply -auto-approve -input=false tfplan
         working-directory: ./terraform-infra
-        # --- Alternativa si no guardaste el plan ---
-        # run: |
-        #  terraform apply -auto-approve -input=false \
-        #    -var="image_tag=${{ needs.create-docker-image.outputs.image_tag }}" \
-        #    -var="aws_region=${{ vars.AWS_REGION }}" \
-        #    -var="project_name=${{ vars.PROJECT_NAME }}" \
-        #    -var="environment=${{ vars.ENVIRONMENT }}" \
-        #    -var="owner=${{ vars.OWNER }}" \
-        #    -var="mongodb_uri=${{ secrets.MONGODB_URI }}"
-        # working-directory: ./terraform-infra
