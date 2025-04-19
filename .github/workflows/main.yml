@@ -137,7 +137,7 @@ jobs:
       - name: Terraform Apply for ECR Repository Only
         if: steps.check-repo.outputs.exists == 'false'
         env:
-          TF_VAR_aws_profile: ${{ vars.AWS_PROFILE }} # Asegúrate que esta variable existe en tu TF
+          # TF_VAR_aws_profile ya no se pasa, no es necesaria en CI con configure-aws-credentials
           TF_VAR_aws_region: ${{ vars.AWS_REGION }}
           TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
           TF_VAR_environment: ${{ vars.ENVIRONMENT }}
