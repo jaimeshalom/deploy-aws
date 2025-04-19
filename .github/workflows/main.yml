@@ -9,7 +9,7 @@ on:
     #   - main
 
 env:
-  ECR_REPOSITORY: ${{ vars.PROJECT_NAME }}-${{ vars.ENVIRONMENT }}-ecr_repository
+  ECR_REPOSITORY: ${{ vars.PROJECT_NAME }}-${{ vars.ENVIRONMENT }}-ecr-repository
 
 jobs:
   test-and-lint:
