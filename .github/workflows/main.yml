@@ -143,7 +143,6 @@ jobs:
           TF_VAR_owner: ${{ vars.OWNER }}
           TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
           TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
-          # Asegúrate que estas son todas las variables necesarias para que el apply con -target funcione
         run: |
           terraform apply -auto-approve -input=false \
             -target="module.ecs_service.aws_ecr_repository.ecr_repository"
