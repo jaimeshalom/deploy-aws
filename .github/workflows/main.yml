@@ -110,7 +110,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 'jaimeshalom/aws-terraform' # Tu repo de Terraform
-          path: './terraform-infra'             # Descarga aquí
+          path: './terraform-infra'               # Descarga aquí
+          ref: 'mongodb'
           # token: ${{ secrets.TERRAFORM_REPO_PAT }} # Si es privado
 
       - name: Setup Terraform
@@ -216,6 +217,7 @@ jobs:
         with:
           repository: 'jaimeshalom/aws-terraform'
           path: './terraform-infra' # Directorio donde se descargará el código
+          ref: 'mongodb'
           # token: ${{ secrets.TERRAFORM_REPO_PAT }} # Añade esto si el repo Terraform es privado
 
       # 3. Setup Terraform
