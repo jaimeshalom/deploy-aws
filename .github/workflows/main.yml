@@ -8,6 +8,12 @@ on:
     # branches:
     #   - main
 
+# Añade permisos para solicitar el token OIDC
+permissions:
+  id-token: write      # Necesario para la autenticación OIDC con AWS
+  contents: read       # Necesario para actions/checkout
+  pull-requests: write # Necesario para infracost/actions/comment (si aplica)
+
 env:
   ECR_REPOSITORY: ${{ vars.PROJECT_NAME }}-${{ vars.ENVIRONMENT }}-ecr-repository
 
@@ -80,14 +86,17 @@ jobs:
     name: Ensure ECR Repository Exists
     runs-on: ubuntu-latest
     needs: test-and-lint
+    # Necesita permisos OIDC porque interactúa con AWS
+    permissions:
+      id-token: write
+      contents: read # Para checkout del repo terraform
     outputs:
       repository_exists: ${{ steps.check-repo.outputs.exists }} # Mantenemos el output por si acaso
     steps:
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Check if ECR repository exists
@@ -135,8 +144,6 @@ jobs:
         working-directory: ./terraform-infra
 
       # Aplicar SOLO la creación del ECR Repo usando -target
-      # Nota: NO necesitamos pasar image_tag, git_version_tag, mongodb_uri aquí
-      # porque solo estamos creando el recurso ECR y sus dependencias básicas.
       - name: Terraform Apply for ECR Repository Only
         if: steps.check-repo.outputs.exists == 'false'
         env:
@@ -155,6 +162,10 @@ jobs:
     name: Build and Push Image
     runs-on: ubuntu-latest
     needs: check-ecr-and-create
+    # Necesita permisos OIDC porque interactúa con AWS ECR
+    permissions:
+      id-token: write
+      contents: read # Para checkout
     outputs:
       image_tag: ${{ steps.build-push.outputs.image_tag }}
       image_version: ${{ steps.build-push.outputs.image_version }} # El tag vX.Y.Z para metadata
@@ -162,11 +173,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -202,16 +212,16 @@ jobs:
     name: Deploy Infrastructure with Terraform
     runs-on: ubuntu-latest
     needs: create-docker-image
-    # Necesario para que la action de Infracost pueda postear comentarios
+    # Necesita permisos OIDC y los otros que ya tenías
     permissions:
-      contents: read          # Necesario para checkout
+      id-token: write       # Para OIDC
+      contents: read        # Necesario para checkout
       pull-requests: write  # Necesario para infracost/actions/comment (incluso en push)
     steps:
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Checkout Terraform Code
@@ -302,10 +312,7 @@ jobs:
         env:
           # ¡IMPORTANTE! Pasar la API Key a Infracost
           INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
-          # Infracost puede necesitar credenciales de AWS para obtener precios específicos de la cuenta/región
           AWS_REGION: ${{ vars.AWS_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           # Pasar GITHUB_TOKEN es buena práctica para que Infracost identifique el repo
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ./terraform-infra
@@ -328,8 +335,6 @@ jobs:
         env:
           INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
           AWS_REGION: ${{ vars.AWS_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ./terraform-infra
         continue-on-error: true
