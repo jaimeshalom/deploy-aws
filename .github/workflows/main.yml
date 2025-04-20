@@ -120,9 +120,18 @@ jobs:
       - name: Terraform Init
         if: steps.check-repo.outputs.exists == 'false'
         id: init
-        # Terraform leerá automáticamente el bloque backend "s3" del main.tf en ./terraform-infra
-        run: terraform init -input=false
-        working-directory: ./terraform-infra # Ejecuta en el directorio del código TF
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ vars.TF_STATE_KEY_PREFIX || 'terraform' }}/${{ vars.PROJECT_NAME }}-${{ vars.ENVIRONMENT }}.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}"
+        working-directory: ./terraform-infra
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+          ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+          TF_STATE_KEY_PREFIX: ${{ vars.TF_STATE_KEY_PREFIX }}
 
       # Opcional pero recomendado: Validar la configuración
       - name: Terraform Validate
@@ -228,8 +237,18 @@ jobs:
       # 4. Terraform Init (en el directorio del código Terraform)
       - name: Terraform Init
         id: init
-        run: terraform init -input=false
-        working-directory: ./terraform-infra # Especifica el directorio
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ vars.TF_STATE_KEY_PREFIX || 'terraform' }}/${{ vars.PROJECT_NAME }}-${{ vars.ENVIRONMENT }}.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}"
+        working-directory: ./terraform-infra
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+          ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+          TF_STATE_KEY_PREFIX: ${{ vars.TF_STATE_KEY_PREFIX }}
 
       # 5. Terraform Validate (Opcional pero bueno)
       - name: Terraform Validate
@@ -301,7 +320,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           # Pasar GITHUB_TOKEN es buena práctica para que Infracost identifique el repo
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: ./terraform-infra # Ejecutar en el directorio de Terraform
+        working-directory: ./terraform-infra
         # Opcional: Evita que el workflow falle si Infracost tiene un problema
         continue-on-error: true
 
