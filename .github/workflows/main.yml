@@ -122,7 +122,7 @@ jobs:
         id: init
         run: |
           terraform init -input=false \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=${{ vars.TF_STATE_KEY_PREFIX || 'terraform' }}/${{ vars.PROJECT_NAME }}-${{ vars.ENVIRONMENT }}.tfstate" \
             -backend-config="region=${{ vars.AWS_REGION }}"
         working-directory: ./terraform-infra
@@ -233,7 +233,7 @@ jobs:
         id: init
         run: |
           terraform init -input=false \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=${{ vars.TF_STATE_KEY_PREFIX || 'terraform' }}/${{ vars.PROJECT_NAME }}-${{ vars.ENVIRONMENT }}.tfstate" \
             -backend-config="region=${{ vars.AWS_REGION }}"
         working-directory: ./terraform-infra
