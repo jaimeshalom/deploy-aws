@@ -1,0 +1,151 @@
+name: Destroy Infrastructure (Manual)
+
+on:
+  # Disparador manual
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Entorno a destruir (ej: dev, staging)'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          # Añade aquí otros entornos si los gestionas de esta forma
+
+# Añade permisos necesarios para OIDC y checkout
+permissions:
+  id-token: write      # Necesario para la autenticación OIDC con AWS
+  contents: read       # Necesario para actions/checkout
+  # pull-requests: write # No es estrictamente necesario para destroy, pero puedes dejarlo por consistencia si quieres
+
+jobs:
+  destroy-infra:
+    name: Destroy Infrastructure with Terraform
+    runs-on: ubuntu-latest
+    # No hay 'needs' ya que es un workflow independiente
+
+    steps:
+      # 1. Configurar credenciales AWS via OIDC
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # El rol a asumir debería tener permisos para destruir los recursos
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # 2. Descargar el código Terraform
+      - name: Checkout Terraform Code
+        uses: actions/checkout@v4
+        with:
+          repository: 'jaimeshalom/aws-terraform' # Tu repo de Terraform
+          path: './terraform-infra'             # Directorio donde se descargará el código
+          # token: ${{ secrets.TERRAFORM_REPO_PAT }} # Añade esto si el repo Terraform es privado
+
+      # 3. Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        # Puedes fijar una versión si es necesario
+        # with:
+        #   terraform_version: 1.6.x
+
+      # 4. Terraform Init (en el directorio del código Terraform)
+      # Es crucial inicializar con el mismo backend config para encontrar el state file correcto
+      - name: Terraform Init
+        id: init
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            # La clave del state file DEBE incluir el entorno seleccionado
+            -backend-config="key=${{ vars.TF_STATE_KEY_PREFIX || 'terraform' }}/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}"
+        working-directory: ./terraform-infra
+
+      # 5. Terraform Validate (Opcional)
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+        working-directory: ./terraform-infra
+
+      # 6. Terraform Plan (para mostrar lo que se destruirá)
+      # ¡MUY RECOMENDADO! Ver qué se va a destruir antes de ejecutarlo.
+      - name: Terraform Plan for Destroy
+        id: plan_destroy
+        env:
+          # Pasa las variables necesarias a Terraform, incluyendo el entorno
+          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+          TF_VAR_environment: ${{ inputs.environment }} # Usa el input manual
+          TF_VAR_owner: ${{ vars.OWNER }}
+          # Algunas variables pueden ser necesarias aunque sea destroy si afectan outputs o data sources
+          # TF_VAR_mongodb_uri: ${{ secrets.MONGODB_URI }} # Podría no ser necesario para destroy
+          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+          TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
+        run: |
+          # Genera un plan de tipo destroy y lo guarda en un archivo
+          terraform plan -destroy -input=false -no-color -out=tfplan-destroy
+        working-directory: ./terraform-infra
+
+      # --- Opcional: Infracost para mostrar el ahorro de costos ---
+      # Mantenemos la lógica de Infracost si quieres ver cuánto ahorras al destruir
+      - name: Check Infracost API Key
+        id: check_infracost_key
+        run: |
+          if [ -n "${{ secrets.INFRACOST_API_KEY }}" ]; then
+            echo "has_key=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_key=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Inform about missing Infracost API Key
+        if: steps.check_infracost_key.outputs.has_key == 'false'
+        run: |
+          echo "::warning:: Infracost API Key (INFRACOST_API_KEY) not configured in GitHub secrets."
+          echo "Skipping cost estimation."
+          echo "To enable cost estimates, add the INFRACOST_API_KEY secret to your repository or organization."
+          echo "You can get a free API key from https://www.infracost.io/pricing"
+
+      - name: Setup Infracost
+        if: steps.check_infracost_key.outputs.has_key == 'true'
+        uses: infracost/actions/setup@v3
+
+      - name: Estimate cost savings using Infracost
+        if: steps.check_infracost_key.outputs.has_key == 'true'
+        id: infracost_diff_destroy
+        run: |
+          # Analiza el plan de destroy para estimar el ahorro (diff negativo)
+          infracost diff --path tfplan-destroy \
+            --format json \
+            --out-file /tmp/infracost-destroy-diff.json # Guarda el diff en JSON
+
+          # Opcional: Muestra un resumen en los logs de la action
+          echo "--- Infracost Cost Savings Estimate ---"
+          infracost diff --path tfplan-destroy # Muestra el resumen
+          echo "-------------------------------------"
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Necesario para identificar el repo
+        working-directory: ./terraform-infra
+        continue-on-error: true # Evita que la action falle si Infracost tiene un problema
+      # --- Fin Opcional: Infracost ---
+
+
+      # 7. Terraform Apply (para ejecutar la destrucción del plan guardado)
+      # Usar 'apply' con el plan de destroy es más seguro que 'destroy -auto-approve'
+      - name: Terraform Apply Destroy Plan
+        # Puedes añadir condiciones, como solo aplicar si el plan fue exitoso
+        # if: steps.plan_destroy.outcome == 'success'
+        env:
+          # Asegúrate de pasar las mismas variables que en el plan
+          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+          TF_VAR_environment: ${{ inputs.environment }} # Usa el input manual
+          TF_VAR_owner: ${{ vars.OWNER }}
+          # TF_VAR_mongodb_uri: ${{ secrets.MONGODB_URI }} # Podría no ser necesario para destroy
+          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+          TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
+        run: |
+          # Ejecuta el plan de destrucción previamente guardado
+          terraform apply -auto-approve -input=false tfplan-destroy
+        working-directory: ./terraform-infra
