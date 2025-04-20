@@ -53,10 +53,10 @@ jobs:
       # Es crucial inicializar con el mismo backend config para encontrar el state file correcto
       - name: Terraform Init
         id: init
+        # La clave del state file DEBE incluir el entorno seleccionado
         run: |
           terraform init -input=false \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
-            # La clave del state file DEBE incluir el entorno seleccionado
             -backend-config="key=${{ vars.TF_STATE_KEY_PREFIX || 'terraform' }}/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}.tfstate" \
             -backend-config="region=${{ vars.AWS_REGION }}"
         working-directory: ./terraform-infra
