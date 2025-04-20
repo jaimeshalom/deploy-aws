@@ -126,12 +126,6 @@ jobs:
             -backend-config="key=${{ vars.TF_STATE_KEY_PREFIX || 'terraform' }}/${{ vars.PROJECT_NAME }}-${{ vars.ENVIRONMENT }}.tfstate" \
             -backend-config="region=${{ vars.AWS_REGION }}"
         working-directory: ./terraform-infra
-        env:
-          AWS_REGION: ${{ vars.AWS_REGION }}
-          PROJECT_NAME: ${{ vars.PROJECT_NAME }}
-          ENVIRONMENT: ${{ vars.ENVIRONMENT }}
-          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
-          TF_STATE_KEY_PREFIX: ${{ vars.TF_STATE_KEY_PREFIX }}
 
       # Opcional pero recomendado: Validar la configuración
       - name: Terraform Validate
@@ -243,12 +237,6 @@ jobs:
             -backend-config="key=${{ vars.TF_STATE_KEY_PREFIX || 'terraform' }}/${{ vars.PROJECT_NAME }}-${{ vars.ENVIRONMENT }}.tfstate" \
             -backend-config="region=${{ vars.AWS_REGION }}"
         working-directory: ./terraform-infra
-        env:
-          AWS_REGION: ${{ vars.AWS_REGION }}
-          PROJECT_NAME: ${{ vars.PROJECT_NAME }}
-          ENVIRONMENT: ${{ vars.ENVIRONMENT }}
-          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
-          TF_STATE_KEY_PREFIX: ${{ vars.TF_STATE_KEY_PREFIX }}
 
       # 5. Terraform Validate (Opcional pero bueno)
       - name: Terraform Validate
