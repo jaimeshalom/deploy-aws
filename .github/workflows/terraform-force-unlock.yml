@@ -1,0 +1,89 @@
+name: Terraform Force Unlock State (Manual)
+
+on:
+  # Este workflow solo puede ser disparado manualmente
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Entorno del estado bloqueado (ej: dev, staging)'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          # Asegúrate de que estas opciones coincidan con tus entornos
+          # Añade aquí otros entornos si los gestionas de esta forma
+      lock_id:
+        description: 'ID del bloqueo a forzar (p. ej., 9e6b9064-... del error)'
+        required: true
+        type: string
+        # Opcional: Puedes añadir un patrón regex si quieres validar el formato del ID
+        # pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+
+# Añade permisos necesarios para OIDC y checkout
+permissions:
+  id-token: write      # Necesario para la autenticación OIDC con AWS para interactuar con el backend
+  contents: read       # Necesario para actions/checkout
+
+jobs:
+  force-unlock-state:
+    name: Force Unlock Terraform State
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Configurar credenciales AWS via OIDC
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # El rol debe tener permisos para leer/escribir en el bucket S3 y la tabla DynamoDB del backend
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # 2. Descargar el código Terraform
+      # Necesario para que Terraform pueda leer la configuración del backend
+      - name: Checkout Terraform Code
+        uses: actions/checkout@v4
+        with:
+          repository: 'jaimeshalom/aws-terraform' # Tu repo de Terraform
+          path: './terraform-infra'             # Directorio donde se descargará el código
+          # token: ${{ secrets.TERRAFORM_REPO_PAT }} # Añade esto si el repo Terraform es privado
+
+      # 3. Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        # Puedes fijar una versión si es necesario para que coincida con la que creó el estado
+        # with:
+        #   terraform_version: 1.6.x
+
+      # 4. Terraform Init (en el directorio del código Terraform)
+      # Es CRUCIAL inicializar con el MISMO backend config para apuntar al state file correcto.
+      # Usamos el environment y project_name para construir la key.
+      - name: Terraform Init
+        id: init
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ vars.TF_STATE_KEY_PREFIX || 'terraform' }}/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}"
+          # Nota: Si tu backend usa DynamoDB para locking, la tabla debe estar definida en tu config .tf
+          # Terraform Init la detectará automáticamente si está en el código descargado.
+        working-directory: ./terraform-infra
+
+      # 5. Ejecutar Terraform Force Unlock
+      - name: Execute Terraform Force Unlock
+        run: |
+          echo "Attempting to force-unlock state for environment: ${{ inputs.environment }}"
+          echo "Lock ID to unlock: ${{ inputs.lock_id }}"
+          # El flag -force es necesario para que no pida confirmación interactiva en CI
+          terraform force-unlock "${{ inputs.lock_id }}" -force
+        working-directory: ./terraform-infra
+        env:
+          # Pasa variables de entorno estándar si son útiles para Terraform (aunque force-unlock no suele necesitarlas)
+          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+          TF_VAR_environment: ${{ inputs.environment }} # Usa el input manual
+
+      # 6. Confirmación visual (opcional)
+      - name: Report successful unlock
+        run: |
+          echo "✅ Terraform state for environment '${{ inputs.environment }}' with lock ID '${{ inputs.lock_id }}' has been force-unlocked."
