@@ -75,7 +75,7 @@ jobs:
           echo "Attempting to force-unlock state for environment: ${{ inputs.environment }}"
           echo "Lock ID to unlock: ${{ inputs.lock_id }}"
           # El flag -force es necesario para que no pida confirmación interactiva en CI
-          terraform force-unlock "${{ inputs.lock_id }}" -force
+          terraform force-unlock -force "${{ inputs.lock_id }}"
         working-directory: ./terraform-infra
         env:
           # Pasa variables de entorno estándar si son útiles para Terraform (aunque force-unlock no suele necesitarlas)
