@@ -63,7 +63,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-unit-data
-          path: .coverage-unit/
+          path: .coverage-unit
           retention-days: 1
 
   e2e-test:
@@ -109,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-e2e-data
-          path: .coverage-e2e/
+          path: .coverage-e2e
           retention-days: 1
 
   combine-coverage:
