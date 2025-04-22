@@ -1,0 +1,171 @@
+name: Run Tests and Coverage on main Branch
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.NODE_VERSION || '20.x' }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+  unit-test:
+    name: Run Unit Tests & Collect Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.NODE_VERSION || '20.x' }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests and generate coverage
+        run: npm run test:cov
+
+      - name: Upload Unit Test coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit-data
+          path: .coverage-unit/
+          retention-days: 1
+
+  e2e-test:
+    name: Run E2E Tests & Collect Coverage
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:6.0.2
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand(\"ping\").ok' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.NODE_VERSION || '20.x' }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run e2e tests and generate coverage
+        env:
+          MONGODB_URI: mongodb://localhost:27017/test_db_qa
+        run: npm run test:e2e:cov
+
+      - name: Upload E2E Test coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-e2e-data
+          path: .coverage-e2e/
+          retention-days: 1
+
+  combine-coverage:
+    name: Combine Coverage & Generate Report
+    needs: [unit-test, e2e-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.NODE_VERSION || '20.x' }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Unit Test coverage data
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-unit-data
+          path: .coverage-unit
+
+      - name: Download E2E Test coverage data
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-e2e-data
+          path: .coverage-e2e
+
+      - name: Prepare for merge (copy files)
+        run: npm run coverage:prepare-merge
+        # Opcional: Añadir un 'ls -la .nyc_output' aquí para depurar si falla el merge
+
+      - name: Merge coverage data
+        run: npm run coverage:merge
+
+      - name: Generate coverage report (text & lcov)
+        run: npm run coverage:report
+        # Opcional: Añadir 'cat coverage/text-summary.txt' para ver resumen en logs
+
+      - name: Upload final coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-coverage-report
+          path: coverage/
+          retention-days: 7
+
+      # Opcional: Publicar cobertura en Codecov (si lo usas)
+      - name: Check for Codecov token
+        id: check_codecov_token
+        run: |
+          if [ -n "${{ secrets.CODECOV_TOKEN }}" ]; then
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload coverage to Codecov
+        if: steps.check_codecov_token.outputs.has_token == 'true'
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # Los archivos de cobertura (Codecov buscará automáticamente formatos comunes como lcov.info)
+          # directory: ./coverage/ # Puedes especificar el directorio si es necesario
+          # files: ./coverage/lcov.info # O un archivo específico
+          fail_ci_if_error: true # Opcional: Falla el build si Codecov falla
+        env:
+           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Inform about missing Codecov token
+        if: steps.check_codecov_token.outputs.has_token == 'false'
+        run: |
+          echo "::warning:: Codecov token (CODECOV_TOKEN) not found in secrets."
+          echo "Skipping coverage upload to Codecov."
