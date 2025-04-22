@@ -19,8 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:e2e:cov": "jest --config ./test/jest-e2e.json --coverage",
-    "coverage:clean": "rm -rf .coverage-unit test/.coverage-e2e coverage .nyc_output",
-    "coverage:prepare-merge": "mkdir -p .nyc_output && cp .coverage-unit/*.json .nyc_output/ 2>/dev/null || true && cp test/.coverage-e2e/*.json .nyc_output/ 2>/dev/null || true",
+    "coverage:clean": "rm -rf .coverage-unit .coverage-e2e coverage .nyc_output",
+    "coverage:prepare-merge": "mkdir -p .nyc_output && cp .coverage-unit/*.json .nyc_output/ 2>/dev/null || true && cp .coverage-e2e/*.json .nyc_output/ 2>/dev/null || true",
     "coverage:merge": "nyc merge .nyc_output coverage/coverage.json",
     "coverage:report": "nyc report --reporter=lcov --reporter=text --report-dir coverage --temp-directory ./coverage",
     "test:cov:combined": "npm run coverage:clean && npm run test:cov && npm run test:e2e:cov && npm run coverage:prepare-merge && npm run coverage:merge && npm run coverage:report"
