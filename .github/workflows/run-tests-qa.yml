@@ -50,6 +50,14 @@ jobs:
       - name: Run unit tests and generate coverage
         run: npm run test:cov
 
+      - name: Check for unit coverage directory and files
+        run: |
+          echo "Listing current directory contents:"
+          ls -la
+          echo "Checking for .coverage-unit directory:"
+          ls -la .coverage-unit
+        if: always()
+
       - name: Upload Unit Test coverage data
         uses: actions/upload-artifact@v4
         with:
@@ -87,6 +95,14 @@ jobs:
         env:
           MONGODB_URI: mongodb://localhost:27017/test_db_qa
         run: npm run test:e2e:cov
+
+      - name: Check for e2e coverage directory and files
+        run: |
+          echo "Listing current directory contents:"
+          ls -la
+          echo "Checking for .coverage-e2e directory:"
+          ls -la .coverage-e2e
+        if: always()
 
       - name: Upload E2E Test coverage data
         uses: actions/upload-artifact@v4
