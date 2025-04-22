@@ -1,5 +1,5 @@
 {
-  "coverageDirectory": "./.coverage-e2e",
+  "coverageDirectory": "./coverage-e2e",
   "moduleFileExtensions": [
     "js",
     "json",

@@ -55,15 +55,15 @@ jobs:
         run: |
           echo "Listing current directory contents:"
           ls -la
-          echo "Checking for .coverage-unit directory:"
-          ls -la .coverage-unit
+          echo "Checking for coverage-unit directory:"
+          ls -la coverage-unit
         if: always()
 
       - name: Upload Unit Test coverage data
         uses: actions/upload-artifact@v4
         with:
           name: coverage-unit-data
-          path: .coverage-unit
+          path: coverage-unit
           retention-days: 1
 
   e2e-test:
@@ -101,15 +101,15 @@ jobs:
         run: |
           echo "Listing current directory contents:"
           ls -la
-          echo "Checking for .coverage-e2e directory:"
-          ls -la .coverage-e2e
+          echo "Checking for coverage-e2e directory:"
+          ls -la coverage-e2e
         if: always()
 
       - name: Upload E2E Test coverage data
         uses: actions/upload-artifact@v4
         with:
           name: coverage-e2e-data
-          path: .coverage-e2e
+          path: coverage-e2e
           retention-days: 1
 
   combine-coverage:
@@ -133,13 +133,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: coverage-unit-data
-          path: .coverage-unit
+          path: coverage-unit
 
       - name: Download E2E Test coverage data
         uses: actions/download-artifact@v4
         with:
           name: coverage-e2e-data
-          path: .coverage-e2e
+          path: coverage-e2e
 
       - name: Prepare for merge (copy files)
         run: npm run coverage:prepare-merge
